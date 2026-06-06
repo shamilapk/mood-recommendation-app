@@ -1,3 +1,4 @@
+from database import get_connection
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import requests
@@ -21,7 +22,27 @@ def home():
 # Recommendation API
 @app.get("/recommend")
 def recommend(mood: str, latitude: float, longitude: float):
+    
+    try:
+      conn = get_connection()
+      cursor = conn.cursor()
 
+      cursor.execute(
+        """
+        INSERT INTO searches
+        (mood, latitude, longitude)
+        VALUES (%s, %s, %s)
+        """,
+        (mood, latitude, longitude)
+      )
+
+      conn.commit()
+
+      cursor.close()
+      conn.close()
+
+    except Exception as e:
+     print("Database Error:", e)
     # Map mood to place type
     mood_to_amenity = {
         "happy": "cafe",
@@ -44,12 +65,16 @@ def recommend(mood: str, latitude: float, longitude: float):
 
     try:
         response = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=10
+        "https://overpass-api.de/api/interpreter",
+        data={"data": query},
+        headers={
+           "User-Agent": "MoodRecommendationApp/1.0"
+        },
+        timeout=20
         )
 
         print("Status Code:", response.status_code)
+        print("Response:", response.text[:500])
 
         # If API failed
         if response.status_code != 200:
@@ -121,3 +146,20 @@ def recommend(mood: str, latitude: float, longitude: float):
                 "open": False
             }
         ]
+@app.get("/history")
+def history():
+
+    conn = get_connection()
+
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT * FROM searches ORDER BY searched_at DESC"
+    )
+
+    results = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return results
