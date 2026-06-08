@@ -1,0 +1,20 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Backend
+        run: docker build -t mood-backend ./backend
+
+      - name: Build Frontend
+        run: docker build -t mood-frontend .
